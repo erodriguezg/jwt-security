@@ -23,6 +23,8 @@ public class TokenService {
 
     private long expirationTimeOnMillis;
 
+    private TimeUnit rotationWindow;
+
     public TokenService(String secretPhrase, TimeUnit timeUnit, long timeUnitDuration) {
         if (secretPhrase == null || secretPhrase.trim().isEmpty()) {
             throw new IllegalArgumentException("secret is empty");
@@ -69,4 +71,20 @@ public class TokenService {
         LOG.debug("token generado: '{}'", token);
         return token;
     }
+
+
+    private String toMD5(String secret) {
+        return null;
+    }
+
+    /**
+     * rota el password segun la ventaja de tiempo
+     * @param secret
+     * @param deltaRotation 0 significa ventana actual, -1 ventana anterior
+     * @return secret concatenado con milli de la ventana
+     */
+    private String rotationWindow(String secret, int deltaRotation) {
+        return null;
+    }
+
 }

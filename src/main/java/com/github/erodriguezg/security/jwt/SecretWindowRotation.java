@@ -35,7 +35,7 @@ public class SecretWindowRotation {
      */
     public String secretWithWindowRotation(int rotation) {
         long actualMillis = Calendar.getInstance(windowTimeZone).getTimeInMillis();
-        long millisWindow = (actualMillis - (rotation * -1 * windowSizeInMillis) / windowSizeInMillis) * windowSizeInMillis;
+        long millisWindow = ((actualMillis  / windowSizeInMillis) * windowSizeInMillis) - (rotation * -1 * windowSizeInMillis);
         return secret + "_" +millisWindow;
     }
 }

@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -19,28 +21,50 @@ public class TokenService {
 
     private static final Logger LOG = LoggerFactory.getLogger(TokenService.class);
 
-    private String secretB64;
-
     private long expirationTimeOnMillis;
 
-    private TimeUnit rotationWindow;
+    private SecretWindowRotation secretWindowRotation;
 
-    public TokenService(String secretPhrase, TimeUnit timeUnit, long timeUnitDuration) {
+    private static SecretWindowRotation createDefaultSecretWindowRotation(String secretPhrase) {
         if (secretPhrase == null || secretPhrase.trim().isEmpty()) {
             throw new IllegalArgumentException("secret is empty");
         }
-        this.secretB64 = Base64.getEncoder().encodeToString(secretPhrase.getBytes());
+        return new SecretWindowRotation(secretPhrase, TimeUnit.MINUTES, 30);
+    }
+
+    public TokenService(String secretPhrase, TimeUnit timeUnit, long timeUnitDuration) {
+        this(timeUnit, timeUnitDuration, createDefaultSecretWindowRotation(secretPhrase));
+    }
+
+    public TokenService(TimeUnit timeUnit, long timeUnitDuration, SecretWindowRotation secretWindowRotation) {
+        this.secretWindowRotation = secretWindowRotation;
         this.expirationTimeOnMillis = timeUnit.toMillis(timeUnitDuration);
     }
 
-    public Map<String, String> parse(String token) {
-        token = token.replace("Bearer ", "");
+    public Map<String, String> parse(final String tokenParam) {
+        String token = tokenParam.replace("Bearer ", "");
         LOG.debug("token entrada: '{}'", token);
-        String jsonPayload = Jwts.parser()
-                .setSigningKey(secretB64)
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+        String jsonPayload = null;
+        RuntimeException exJwtParser = null;
+        for(int window = 0; window < 2; window++) {
+            try {
+                jsonPayload = Jwts.parser()
+                        .setSigningKey(toMD5B64(this.secretWindowRotation.secretWithWindowRotation(window*-1)))
+                        .parseClaimsJws(token)
+                        .getBody()
+                        .getSubject();
+                if(jsonPayload != null) {
+                    break;
+                }
+            }catch (RuntimeException ex) {
+                exJwtParser = ex;
+            }
+        }
+
+        if(jsonPayload == null && exJwtParser != null) {
+            throw exJwtParser;
+        }
+
         ObjectMapper mapper = new ObjectMapper();
         try {
             TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {
@@ -66,25 +90,20 @@ public class TokenService {
                 .setSubject(jsonPayload)
                 .setIssuedAt(now)
                 .setExpiration(expiration)
-                .signWith(SignatureAlgorithm.HS512, secretB64)
+                .signWith(SignatureAlgorithm.HS512, toMD5B64(this.secretWindowRotation.secretWithWindowRotation(0)))
                 .compact();
         LOG.debug("token generado: '{}'", token);
         return token;
     }
 
-
-    private String toMD5(String secret) {
-        return null;
-    }
-
-    /**
-     * rota el password segun la ventaja de tiempo
-     * @param secret
-     * @param deltaRotation 0 significa ventana actual, -1 ventana anterior
-     * @return secret concatenado con milli de la ventana
-     */
-    private String rotationWindow(String secret, int deltaRotation) {
-        return null;
+    private String toMD5B64(String secret) {
+        MessageDigest md = null;
+        try {
+            md = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+        return Base64.getEncoder().encodeToString(md.digest(secret.getBytes()));
     }
 
 }

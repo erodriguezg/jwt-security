@@ -45,7 +45,8 @@ public class TokenServiceTest {
 
     @Test(expected = io.jsonwebtoken.ExpiredJwtException.class)
     public void testTokenVencido() throws InterruptedException {
-        TokenService tokenService = new TokenService("fraseSuperSecreta!!!", TimeUnit.MILLISECONDS, 10L);
+        SecretWindowRotation secretWindowRotation = new SecretWindowRotation("fraseSuperSecreta!!!", TimeUnit.MILLISECONDS, 20);
+        TokenService tokenService = new TokenService(TimeUnit.MILLISECONDS, 10L, secretWindowRotation);
         String token = tokenService.create(sessionDataMap);
         Thread.sleep(100);
         Map<String,String> sessionDataFromToken = tokenService.parse(token);

@@ -11,6 +11,7 @@ public class SecretWindowRotation {
         TIMEUNIT_IN_MILLIS.put(TimeUnit.HOURS, 3600000L);
         TIMEUNIT_IN_MILLIS.put(TimeUnit.MINUTES, 60000L);
         TIMEUNIT_IN_MILLIS.put(TimeUnit.SECONDS, 1000L);
+        TIMEUNIT_IN_MILLIS.put(TimeUnit.MILLISECONDS, 1L);
     }
 
     private final String secret;
@@ -22,7 +23,7 @@ public class SecretWindowRotation {
     public SecretWindowRotation(String secret, TimeUnit windowTimeUnit, Integer windowSize) {
         this.secret = secret;
         if(TIMEUNIT_IN_MILLIS.get(windowTimeUnit) == null) {
-            throw new IllegalStateException("Only Hours, Minutes And Seconds TimeUnits Supported");
+            throw new IllegalStateException("Only Hours, Minutes, Seconds and Milliseconds TimeUnits Supported");
         }
         this.windowSizeInMillis = TIMEUNIT_IN_MILLIS.get(windowTimeUnit) * windowSize;
         this.windowTimeZone = TimeZone.getTimeZone("UTC");

@@ -45,11 +45,30 @@ public class TokenServiceTest {
 
     @Test(expected = io.jsonwebtoken.ExpiredJwtException.class)
     public void testTokenVencido() throws InterruptedException {
-        SecretWindowRotation secretWindowRotation = new SecretWindowRotation("fraseSuperSecreta!!!", TimeUnit.MILLISECONDS, 20);
+        SecretWindowRotation secretWindowRotation = new SecretWindowRotation("fraseSuperSecreta!!!", TimeUnit.HOURS, 1);
         TokenService tokenService = new TokenService(TimeUnit.MILLISECONDS, 10L, secretWindowRotation);
         String token = tokenService.create(sessionDataMap);
         Thread.sleep(100);
         Map<String,String> sessionDataFromToken = tokenService.parse(token);
     }
+
+    @Test
+    public void testTokenValidoEnRotacionAnterior() throws InterruptedException {
+        SecretWindowRotation secretWindowRotation = new SecretWindowRotation("fraseSuperSecreta!!!", TimeUnit.SECONDS, 1);
+        TokenService tokenService = new TokenService(TimeUnit.MINUTES, 1L, secretWindowRotation);
+        String token = tokenService.create(sessionDataMap);
+        Thread.sleep(1050);
+        Map<String,String> sessionDataFromToken = tokenService.parse(token);
+    }
+
+    @Test(expected = io.jsonwebtoken.SignatureException.class)
+    public void testTokenInvalidoPorRotacion() throws InterruptedException {
+        SecretWindowRotation secretWindowRotation = new SecretWindowRotation("fraseSuperSecreta!!!", TimeUnit.SECONDS, 1);
+        TokenService tokenService = new TokenService(TimeUnit.MINUTES, 1L, secretWindowRotation);
+        String token = tokenService.create(sessionDataMap);
+        Thread.sleep(2000);
+        Map<String,String> sessionDataFromToken = tokenService.parse(token);
+    }
+
 
 }

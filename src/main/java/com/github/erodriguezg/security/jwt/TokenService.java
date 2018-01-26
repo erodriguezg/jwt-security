@@ -3,6 +3,7 @@ package com.github.erodriguezg.security.jwt;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.slf4j.Logger;
@@ -19,7 +20,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class TokenService {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TokenService.class);
+    private static final Logger log = LoggerFactory.getLogger(TokenService.class);
 
     private long expirationTimeOnMillis;
 
@@ -43,10 +44,11 @@ public class TokenService {
 
     public Map<String, String> parse(final String tokenParam) {
         String token = tokenParam.replace("Bearer ", "");
-        LOG.debug("token entrada: '{}'", token);
+        log.debug("token entrada: '{}'", token);
         String jsonPayload = null;
         RuntimeException exJwtParser = null;
         for(int window = 0; window < 2; window++) {
+            log.debug("window: {}", window);
             try {
                 jsonPayload = Jwts.parser()
                         .setSigningKey(toMD5B64(this.secretWindowRotation.secretWithWindowRotation(window*-1)))
@@ -56,6 +58,8 @@ public class TokenService {
                 if(jsonPayload != null) {
                     break;
                 }
+            }catch (ExpiredJwtException ex) {
+                throw ex;
             }catch (RuntimeException ex) {
                 exJwtParser = ex;
             }
@@ -92,7 +96,7 @@ public class TokenService {
                 .setExpiration(expiration)
                 .signWith(SignatureAlgorithm.HS512, toMD5B64(this.secretWindowRotation.secretWithWindowRotation(0)))
                 .compact();
-        LOG.debug("token generado: '{}'", token);
+        log.debug("token generado: '{}'", token);
         return token;
     }
 

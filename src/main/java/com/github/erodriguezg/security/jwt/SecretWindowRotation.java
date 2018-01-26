@@ -16,8 +16,6 @@ public class SecretWindowRotation {
 
     private final String secret;
 
-    private final TimeZone windowTimeZone;
-
     private final long windowSizeInMillis;
 
     public SecretWindowRotation(String secret, TimeUnit windowTimeUnit, Integer windowSize) {
@@ -26,7 +24,6 @@ public class SecretWindowRotation {
             throw new IllegalStateException("Only Hours, Minutes, Seconds and Milliseconds TimeUnits Supported");
         }
         this.windowSizeInMillis = TIMEUNIT_IN_MILLIS.get(windowTimeUnit) * windowSize;
-        this.windowTimeZone = TimeZone.getTimeZone("UTC");
     }
 
     /**
@@ -35,7 +32,7 @@ public class SecretWindowRotation {
      * @return secret concatenado con window segun timeunit
      */
     public String secretWithWindowRotation(int rotation) {
-        long actualMillis = Calendar.getInstance(windowTimeZone).getTimeInMillis();
+        long actualMillis = System.currentTimeMillis();
         long millisWindow = ((actualMillis  / windowSizeInMillis) * windowSizeInMillis) - (rotation * -1 * windowSizeInMillis);
         return secret + "_" +millisWindow;
     }

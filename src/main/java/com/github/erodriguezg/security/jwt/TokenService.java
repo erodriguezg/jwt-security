@@ -1,7 +1,6 @@
 package com.github.erodriguezg.security.jwt;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -12,7 +11,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.Base64;
+import java.util.Date;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -42,48 +43,46 @@ public class TokenService {
         this.expirationTimeOnMillis = timeUnit.toMillis(timeUnitDuration);
     }
 
-    public Map<String, String> parse(final String tokenParam) {
+    public <T> T parse(final String tokenParam, Class<T> clazz ) {
         String token = tokenParam.replace("Bearer ", "");
         log.debug("token entrada: '{}'", token);
         String jsonPayload = null;
         RuntimeException exJwtParser = null;
-        for(int window = 0; window < 2; window++) {
+        for (int window = 0; window < 2; window++) {
             log.debug("window: {}", window);
             try {
                 jsonPayload = Jwts.parser()
-                        .setSigningKey(toMD5B64(this.secretWindowRotation.secretWithWindowRotation(window*-1)))
+                        .setSigningKey(toMD5B64(this.secretWindowRotation.secretWithWindowRotation(window * -1)))
                         .parseClaimsJws(token)
                         .getBody()
                         .getSubject();
-                if(jsonPayload != null) {
+                if (jsonPayload != null) {
                     break;
                 }
-            }catch (ExpiredJwtException ex) {
+            } catch (ExpiredJwtException ex) {
                 throw ex;
-            }catch (RuntimeException ex) {
+            } catch (RuntimeException ex) {
                 exJwtParser = ex;
             }
         }
 
-        if(jsonPayload == null && exJwtParser != null) {
+        if (jsonPayload == null && exJwtParser != null) {
             throw exJwtParser;
         }
 
         ObjectMapper mapper = new ObjectMapper();
         try {
-            TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {
-            };
-            return mapper.readValue(jsonPayload, typeRef);
+            return mapper.readValue(jsonPayload, clazz);
         } catch (IOException ex) {
             throw new IllegalStateException(ex);
         }
     }
 
-    public String create(Map<String, String> subjectMap) {
+    public String create(Object payLoad) {
         ObjectMapper mapper = new ObjectMapper();
         String jsonPayload;
         try {
-            jsonPayload = mapper.writeValueAsString(subjectMap);
+            jsonPayload = mapper.writeValueAsString(payLoad);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException(ex);
         }

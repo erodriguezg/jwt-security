@@ -4,7 +4,6 @@ import org.springframework.security.core.Authentication;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -18,21 +17,21 @@ public class TokenAuthenticationHttpHandler {
 
     private final TokenService tokenService;
 
-    private final Function<Map<String, String>, Authentication> sessionToAuthFunction;
+    private final Function<Object, Authentication> sessionToAuthFunction;
 
-    private final Function<Authentication, Map<String, String>> authToSessionFunction;
+    private final Function<Authentication, Object> authToSessionFunction;
 
 
     public TokenAuthenticationHttpHandler(TokenService tokenService,
-                                          Function<Map<String, String>, Authentication> sessionToAuthFunction,
-                                          Function<Authentication, Map<String, String>> authToSessionFunction) {
+                                          Function<Object, Authentication> sessionToAuthFunction,
+                                          Function<Authentication, Object> authToSessionFunction) {
         this(JWT_HEADER_STANDART, tokenService, sessionToAuthFunction, authToSessionFunction);
     }
 
     public TokenAuthenticationHttpHandler(String authHeaderName,
                                           TokenService tokenService,
-                                          Function<Map<String, String>, Authentication> sessionToAuthFunction,
-                                          Function<Authentication, Map<String, String>> authToSessionFunction) {
+                                          Function<Object, Authentication> sessionToAuthFunction,
+                                          Function<Authentication, Object> authToSessionFunction) {
         this.authHeaderName = authHeaderName;
         this.tokenService = tokenService;
         this.sessionToAuthFunction = sessionToAuthFunction;
@@ -49,14 +48,14 @@ public class TokenAuthenticationHttpHandler {
 
     public Authentication getAuthentication(HttpServletRequest request) {
         String token = request.getHeader(authHeaderName);
-        if(token == null) {
+        if (token == null) {
             return null;
         }
         token = token.replace("Bearer ", "").trim();
-        if(token.isEmpty()) {
+        if (token.isEmpty()) {
             return null;
         }
-        final Map<String, String> sessionData = tokenService.parse(token);
+        final Object sessionData = tokenService.parse(token, Object.class);
         if (sessionData != null) {
             return this.sessionToAuthFunction.apply(sessionData);
         }

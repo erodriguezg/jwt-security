@@ -23,9 +23,13 @@ public class TokenService {
 
     private static final Logger log = LoggerFactory.getLogger(TokenService.class);
 
+    private static final SignatureAlgorithm SIGNATURE_ALGORITHM_DEFAULT = SignatureAlgorithm.HS256;
+
     private long expirationTimeOnMillis;
 
     private SecretWindowRotation secretWindowRotation;
+
+    private SignatureAlgorithm signatureAlgorithm;
 
     private static SecretWindowRotation createDefaultSecretWindowRotation(String secretPhrase) {
         if (secretPhrase == null || secretPhrase.trim().isEmpty()) {
@@ -35,12 +39,21 @@ public class TokenService {
     }
 
     public TokenService(String secretPhrase, TimeUnit timeUnit, long timeUnitDuration) {
-        this(timeUnit, timeUnitDuration, createDefaultSecretWindowRotation(secretPhrase));
+        this(timeUnit, timeUnitDuration, createDefaultSecretWindowRotation(secretPhrase), SIGNATURE_ALGORITHM_DEFAULT);
+    }
+
+    public TokenService(String secretPhrase, TimeUnit timeUnit, long timeUnitDuration, SignatureAlgorithm signatureAlgorithm) {
+        this(timeUnit, timeUnitDuration, createDefaultSecretWindowRotation(secretPhrase), signatureAlgorithm);
     }
 
     public TokenService(TimeUnit timeUnit, long timeUnitDuration, SecretWindowRotation secretWindowRotation) {
+        this(timeUnit, timeUnitDuration, secretWindowRotation, SIGNATURE_ALGORITHM_DEFAULT);
+    }
+
+    public TokenService(TimeUnit timeUnit, long timeUnitDuration, SecretWindowRotation secretWindowRotation, SignatureAlgorithm signatureAlgorithm) {
         this.secretWindowRotation = secretWindowRotation;
         this.expirationTimeOnMillis = timeUnit.toMillis(timeUnitDuration);
+        this.signatureAlgorithm = signatureAlgorithm;
     }
 
     public <T> T parse(final String tokenParam, Class<T> clazz ) {
@@ -93,7 +106,7 @@ public class TokenService {
                 .setSubject(jsonPayload)
                 .setIssuedAt(now)
                 .setExpiration(expiration)
-                .signWith(SignatureAlgorithm.HS512, toMD5B64(this.secretWindowRotation.secretWithWindowRotation(0)))
+                .signWith(this.signatureAlgorithm, toMD5B64(this.secretWindowRotation.secretWithWindowRotation(0)))
                 .compact();
         log.debug("token generado: '{}'", token);
         return token;

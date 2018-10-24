@@ -9,7 +9,7 @@ import java.util.function.Function;
 /**
  * Created by eduardo on 24-03-17.
  */
-public class TokenAuthenticationHttpHandler {
+public class TokenAuthenticationHttpHandler<T> {
 
     private static final String JWT_HEADER_STANDART = "Authorization";
 
@@ -17,25 +17,29 @@ public class TokenAuthenticationHttpHandler {
 
     private final TokenService tokenService;
 
-    private final Function<Object, Authentication> sessionToAuthFunction;
+    private final Function<T, Authentication> sessionToAuthFunction;
 
-    private final Function<Authentication, Object> authToSessionFunction;
+    private final Function<Authentication, T> authToSessionFunction;
+
+    private final Class<T> sessionClass;
 
 
-    public TokenAuthenticationHttpHandler(TokenService tokenService,
-                                          Function<Object, Authentication> sessionToAuthFunction,
-                                          Function<Authentication, Object> authToSessionFunction) {
-        this(JWT_HEADER_STANDART, tokenService, sessionToAuthFunction, authToSessionFunction);
+    public TokenAuthenticationHttpHandler(Class<T> sessionClass,
+                                          TokenService tokenService,
+                                          Function<T, Authentication> sessionToAuthFunction,
+                                          Function<Authentication, T> authToSessionFunction) {
+        this(sessionClass, JWT_HEADER_STANDART, tokenService, sessionToAuthFunction, authToSessionFunction);
     }
 
-    public TokenAuthenticationHttpHandler(String authHeaderName,
+    public TokenAuthenticationHttpHandler(Class<T> sessionClass, String authHeaderName,
                                           TokenService tokenService,
-                                          Function<Object, Authentication> sessionToAuthFunction,
-                                          Function<Authentication, Object> authToSessionFunction) {
+                                          Function<T, Authentication> sessionToAuthFunction,
+                                          Function<Authentication, T> authToSessionFunction) {
         this.authHeaderName = authHeaderName;
         this.tokenService = tokenService;
         this.sessionToAuthFunction = sessionToAuthFunction;
         this.authToSessionFunction = authToSessionFunction;
+        this.sessionClass = sessionClass;
     }
 
     public void addAuthentication(HttpServletResponse response, Authentication authentication) {
@@ -55,7 +59,7 @@ public class TokenAuthenticationHttpHandler {
         if (token.isEmpty()) {
             return null;
         }
-        final Object sessionData = tokenService.parse(token, Object.class);
+        final T sessionData = tokenService.parse(token,this.sessionClass);
         if (sessionData != null) {
             return this.sessionToAuthFunction.apply(sessionData);
         }

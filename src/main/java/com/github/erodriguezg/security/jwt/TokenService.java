@@ -2,6 +2,8 @@ package com.github.erodriguezg.security.jwt;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -19,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by eduardo on 24-03-17.
  */
-public class TokenService {
+public class TokenService<T> {
 
     private static final Logger log = LoggerFactory.getLogger(TokenService.class);
 
@@ -30,6 +32,12 @@ public class TokenService {
     private SecretWindowRotation secretWindowRotation;
 
     private SignatureAlgorithm signatureAlgorithm;
+
+    private ObjectReader objectReader;
+
+    private ObjectWriter objectWriter;
+
+    private Class<T> sessionClass;
 
     private static SecretWindowRotation createDefaultSecretWindowRotation(String secretPhrase) {
         if (secretPhrase == null || secretPhrase.trim().isEmpty()) {
@@ -83,9 +91,8 @@ public class TokenService {
             throw exJwtParser;
         }
 
-        ObjectMapper mapper = new ObjectMapper();
         try {
-            return mapper.readValue(jsonPayload, clazz);
+            return objectReader.readValue(jsonPayload, clazz);
         } catch (IOException ex) {
             throw new IllegalStateException(ex);
         }
@@ -111,6 +118,15 @@ public class TokenService {
         log.debug("token generado: '{}'", token);
         return token;
     }
+
+    public void setObjectMapper(ObjectMapper objectMapper) {
+        if(objectMapper == null) {
+            throw new IllegalStateException("ObjectMapper es nulo!");
+        }
+        this.objectWriter = objectMapper.writerFor();
+        this.objectReader = objectMapper.readerFor();
+    }
+
 
     private String toMD5B64(String secret) {
         MessageDigest md = null;

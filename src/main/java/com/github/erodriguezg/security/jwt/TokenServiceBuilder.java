@@ -1,5 +1,6 @@
 package com.github.erodriguezg.security.jwt;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.SignatureAlgorithm;
 
 import java.util.concurrent.TimeUnit;
@@ -32,8 +33,10 @@ public class TokenServiceBuilder<T> {
         return this;
     }
 
-
-
+    public TokenServiceBuilder<T> setObjectMapper(ObjectMapper objectMapper) {
+        this.tokenService.setObjectMapper(objectMapper);
+        return this;
+    }
 
     public TokenService<T> build() {
         return tokenService;

@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Created by eduardo on 24-03-17.
  */
+@SuppressWarnings("squid:S2925")
 public class TokenServiceTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(TokenServiceTest.class);
@@ -31,44 +32,58 @@ public class TokenServiceTest {
 
     @Test
     public void testTokenCorrecto() {
-        TokenService tokenService = new TokenService(SECRET_PHRASE, TimeUnit.MINUTES, 1L);
+        TokenService<DataSession> tokenService = new TokenServiceBuilder<>(DataSession.class)
+                .setSecretWindowRotation(SECRET_PHRASE)
+                .setExpirationTime(TimeUnit.MINUTES, 1L)
+                .build();
         String token = tokenService.create(dataSession);
-        DataSession sessionDataFromToken = tokenService.parse(token, DataSession.class);
+        DataSession sessionDataFromToken = tokenService.parse(token);
         assertThat(dataSession).isEqualTo(sessionDataFromToken);
     }
 
     @Test(expected = io.jsonwebtoken.SignatureException.class)
     public void testTokenIncorrecto() {
-        TokenService tokenService = new TokenService(SECRET_PHRASE, TimeUnit.MINUTES, 1L);
+
+        TokenService<DataSession> tokenService = new TokenServiceBuilder<>(DataSession.class)
+                .setSecretWindowRotation(SECRET_PHRASE)
+                .setExpirationTime(TimeUnit.MINUTES, 1L)
+                .build();
+
         String token = tokenService.create(dataSession);
-        tokenService.parse(token+"a", DataSession.class);
+        tokenService.parse(token+"a");
     }
 
     @Test(expected = io.jsonwebtoken.ExpiredJwtException.class)
     public void testTokenVencido() throws InterruptedException {
-        SecretWindowRotation secretWindowRotation = new SecretWindowRotation(SECRET_PHRASE, TimeUnit.HOURS, 1);
-        TokenService tokenService = new TokenService(TimeUnit.MILLISECONDS, 10L, secretWindowRotation);
+        TokenService<DataSession> tokenService = new TokenServiceBuilder<>(DataSession.class)
+                .setSecretWindowRotation(new SecretWindowRotation(SECRET_PHRASE, TimeUnit.HOURS, 1))
+                .setExpirationTime(TimeUnit.MILLISECONDS, 10L)
+                .build();
         String token = tokenService.create(dataSession);
         Thread.sleep(100);
-        tokenService.parse(token, DataSession.class);
+        tokenService.parse(token);
     }
 
     @Test
     public void testTokenValidoEnRotacionAnterior() throws InterruptedException {
-        SecretWindowRotation secretWindowRotation = new SecretWindowRotation(SECRET_PHRASE, TimeUnit.SECONDS, 1);
-        TokenService tokenService = new TokenService(TimeUnit.MINUTES, 1L, secretWindowRotation);
+        TokenService<DataSession> tokenService = new TokenServiceBuilder<>(DataSession.class)
+                .setSecretWindowRotation(new SecretWindowRotation(SECRET_PHRASE, TimeUnit.SECONDS, 1))
+                .setExpirationTime(TimeUnit.MINUTES, 1L)
+                .build();
         String token = tokenService.create(dataSession);
         Thread.sleep(1050);
-        tokenService.parse(token, DataSession.class);
+        tokenService.parse(token);
     }
 
     @Test(expected = io.jsonwebtoken.SignatureException.class)
     public void testTokenInvalidoPorRotacion() throws InterruptedException {
-        SecretWindowRotation secretWindowRotation = new SecretWindowRotation(SECRET_PHRASE, TimeUnit.SECONDS, 1);
-        TokenService tokenService = new TokenService(TimeUnit.MINUTES, 1L, secretWindowRotation);
+        TokenService<DataSession> tokenService = new TokenServiceBuilder<>(DataSession.class)
+                .setSecretWindowRotation(new SecretWindowRotation(SECRET_PHRASE, TimeUnit.SECONDS, 1))
+                .setExpirationTime(TimeUnit.MINUTES, 1L)
+                .build();
         String token = tokenService.create(dataSession);
         Thread.sleep(2000);
-        tokenService.parse(token, DataSession.class);
+        tokenService.parse(token);
     }
 
     public static class DataSession {

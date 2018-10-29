@@ -25,7 +25,11 @@ public class TokenService<T> {
 
     private static final Logger log = LoggerFactory.getLogger(TokenService.class);
 
-    private static final SignatureAlgorithm SIGNATURE_ALGORITHM_DEFAULT = SignatureAlgorithm.HS256;
+    private static final SignatureAlgorithm DEFAULT_SIGNATURE_ALGORITHM = SignatureAlgorithm.HS256;
+
+    private static final String DEFAULT_SECRET_PHRASE = "changeit_123";
+
+    private static final long DEFAULT_EXPIRATION_TIME_MILLIS = 1000l * 60l * 20l; // 20 Minutes
 
     private long expirationTimeOnMillis;
 
@@ -37,7 +41,7 @@ public class TokenService<T> {
 
     private ObjectWriter objectWriter;
 
-    private Class<T> sessionClass;
+    private final Class<T> sessionClass;
 
     private static SecretWindowRotation createDefaultSecretWindowRotation(String secretPhrase) {
         if (secretPhrase == null || secretPhrase.trim().isEmpty()) {
@@ -46,25 +50,59 @@ public class TokenService<T> {
         return new SecretWindowRotation(secretPhrase, TimeUnit.MINUTES, 30);
     }
 
-    public TokenService(String secretPhrase, TimeUnit timeUnit, long timeUnitDuration) {
-        this(timeUnit, timeUnitDuration, createDefaultSecretWindowRotation(secretPhrase), SIGNATURE_ALGORITHM_DEFAULT);
+    public TokenService(Class<T> sessionClass) {
+        this.sessionClass = sessionClass;
+        this.expirationTimeOnMillis = DEFAULT_EXPIRATION_TIME_MILLIS;
+        this.setSecretWindowRotation(DEFAULT_SECRET_PHRASE);
+        this.setSignatureAlgorithm(DEFAULT_SIGNATURE_ALGORITHM);
+        this.setObjectMapper(new ObjectMapper());
     }
 
-    public TokenService(String secretPhrase, TimeUnit timeUnit, long timeUnitDuration, SignatureAlgorithm signatureAlgorithm) {
-        this(timeUnit, timeUnitDuration, createDefaultSecretWindowRotation(secretPhrase), signatureAlgorithm);
-    }
-
-    public TokenService(TimeUnit timeUnit, long timeUnitDuration, SecretWindowRotation secretWindowRotation) {
-        this(timeUnit, timeUnitDuration, secretWindowRotation, SIGNATURE_ALGORITHM_DEFAULT);
-    }
-
-    public TokenService(TimeUnit timeUnit, long timeUnitDuration, SecretWindowRotation secretWindowRotation, SignatureAlgorithm signatureAlgorithm) {
+    public void setSecretWindowRotation(SecretWindowRotation secretWindowRotation) {
         this.secretWindowRotation = secretWindowRotation;
+    }
+
+    public void setSecretWindowRotation(String secretPhrase) {
+        this.secretWindowRotation = createDefaultSecretWindowRotation(secretPhrase);
+    }
+
+    public void setExpirationTime(TimeUnit timeUnit, long timeUnitDuration) {
         this.expirationTimeOnMillis = timeUnit.toMillis(timeUnitDuration);
+    }
+
+    public void setSignatureAlgorithm(SignatureAlgorithm signatureAlgorithm) {
         this.signatureAlgorithm = signatureAlgorithm;
     }
 
-    public <T> T parse(final String tokenParam, Class<T> clazz ) {
+    public void setObjectMapper(ObjectMapper objectMapper) {
+        if(objectMapper == null) {
+            throw new IllegalStateException("ObjectMapper es nulo!");
+        }
+        this.objectReader = objectMapper.readerFor(this.sessionClass);
+        this.objectWriter = objectMapper.writerFor(this.sessionClass);
+    }
+
+    public String create(Object payLoad) {
+        String jsonPayload;
+        try {
+            jsonPayload = this.objectWriter.writeValueAsString(payLoad);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException(ex);
+        }
+        Date now = new Date();
+        Date expiration = new Date(now.getTime() + expirationTimeOnMillis);
+        String token = Jwts.builder()
+                .setId(UUID.randomUUID().toString())
+                .setSubject(jsonPayload)
+                .setIssuedAt(now)
+                .setExpiration(expiration)
+                .signWith(this.signatureAlgorithm, toMD5B64(this.secretWindowRotation.secretWithWindowRotation(0)))
+                .compact();
+        log.debug("token generado: '{}'", token);
+        return token;
+    }
+
+    public T parse(final String tokenParam) {
         String token = tokenParam.replace("Bearer ", "");
         log.debug("token entrada: '{}'", token);
         String jsonPayload = null;
@@ -92,41 +130,11 @@ public class TokenService<T> {
         }
 
         try {
-            return objectReader.readValue(jsonPayload, clazz);
+            return objectReader.readValue(jsonPayload);
         } catch (IOException ex) {
             throw new IllegalStateException(ex);
         }
     }
-
-    public String create(Object payLoad) {
-        ObjectMapper mapper = new ObjectMapper();
-        String jsonPayload;
-        try {
-            jsonPayload = mapper.writeValueAsString(payLoad);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException(ex);
-        }
-        Date now = new Date();
-        Date expiration = new Date(now.getTime() + expirationTimeOnMillis);
-        String token = Jwts.builder()
-                .setId(UUID.randomUUID().toString())
-                .setSubject(jsonPayload)
-                .setIssuedAt(now)
-                .setExpiration(expiration)
-                .signWith(this.signatureAlgorithm, toMD5B64(this.secretWindowRotation.secretWithWindowRotation(0)))
-                .compact();
-        log.debug("token generado: '{}'", token);
-        return token;
-    }
-
-    public void setObjectMapper(ObjectMapper objectMapper) {
-        if(objectMapper == null) {
-            throw new IllegalStateException("ObjectMapper es nulo!");
-        }
-        this.objectWriter = objectMapper.writerFor();
-        this.objectReader = objectMapper.readerFor();
-    }
-
 
     private String toMD5B64(String secret) {
         MessageDigest md = null;

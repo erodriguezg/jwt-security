@@ -15,31 +15,27 @@ public class TokenAuthenticationHttpHandler<T> {
 
     private final String authHeaderName;
 
-    private final TokenService tokenService;
+    private final TokenService<T> tokenService;
 
     private final Function<T, Authentication> sessionToAuthFunction;
 
     private final Function<Authentication, T> authToSessionFunction;
 
-    private final Class<T> sessionClass;
 
-
-    public TokenAuthenticationHttpHandler(Class<T> sessionClass,
-                                          TokenService tokenService,
+    public TokenAuthenticationHttpHandler(TokenService<T> tokenService,
                                           Function<T, Authentication> sessionToAuthFunction,
                                           Function<Authentication, T> authToSessionFunction) {
-        this(sessionClass, JWT_HEADER_STANDART, tokenService, sessionToAuthFunction, authToSessionFunction);
+        this(JWT_HEADER_STANDART, tokenService, sessionToAuthFunction, authToSessionFunction);
     }
 
-    public TokenAuthenticationHttpHandler(Class<T> sessionClass, String authHeaderName,
-                                          TokenService tokenService,
+    public TokenAuthenticationHttpHandler(String authHeaderName,
+                                          TokenService<T> tokenService,
                                           Function<T, Authentication> sessionToAuthFunction,
                                           Function<Authentication, T> authToSessionFunction) {
         this.authHeaderName = authHeaderName;
         this.tokenService = tokenService;
         this.sessionToAuthFunction = sessionToAuthFunction;
         this.authToSessionFunction = authToSessionFunction;
-        this.sessionClass = sessionClass;
     }
 
     public void addAuthentication(HttpServletResponse response, Authentication authentication) {
@@ -59,7 +55,7 @@ public class TokenAuthenticationHttpHandler<T> {
         if (token.isEmpty()) {
             return null;
         }
-        final T sessionData = tokenService.parse(token,this.sessionClass);
+        final T sessionData = tokenService.parse(token);
         if (sessionData != null) {
             return this.sessionToAuthFunction.apply(sessionData);
         }

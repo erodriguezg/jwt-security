@@ -7,9 +7,11 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -91,12 +93,16 @@ public class TokenService<T> {
         }
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationTimeOnMillis);
+
+        String dynamicSecret = rightPadding(toMD5B64(this.secretWindowRotation.secretWithWindowRotation(0)), this.signatureAlgorithm.getMinKeyLength());
+        SecretKey algorithmKey = Keys.hmacShaKeyFor(dynamicSecret.getBytes());
+
         String token = Jwts.builder()
                 .setId(UUID.randomUUID().toString())
                 .setSubject(jsonPayload)
                 .setIssuedAt(now)
                 .setExpiration(expiration)
-                .signWith(this.signatureAlgorithm, toMD5B64(this.secretWindowRotation.secretWithWindowRotation(0)))
+                .signWith(algorithmKey, this.signatureAlgorithm)
                 .compact();
         log.debug("token generado: '{}'", token);
         return token;
@@ -110,8 +116,12 @@ public class TokenService<T> {
         for (int window = 0; window < 2; window++) {
             log.debug("window: {}", window);
             try {
+
+                String dynamicSecret = rightPadding(toMD5B64(this.secretWindowRotation.secretWithWindowRotation(window * -1)), this.signatureAlgorithm.getMinKeyLength());
+                SecretKey algorithmKey = Keys.hmacShaKeyFor(dynamicSecret.getBytes());
+
                 jsonPayload = Jwts.parser()
-                        .setSigningKey(toMD5B64(this.secretWindowRotation.secretWithWindowRotation(window * -1)))
+                        .setSigningKey(algorithmKey)
                         .parseClaimsJws(token)
                         .getBody()
                         .getSubject();
@@ -144,6 +154,21 @@ public class TokenService<T> {
             throw new IllegalStateException(e);
         }
         return Base64.getEncoder().encodeToString(md.digest(secret.getBytes()));
+    }
+
+    private String rightPadding(String secret, int minKeyLengthBits) {
+        if(secret == null) {
+            throw new IllegalStateException("secret no puede ser nula");
+        }
+        int bitesSize = secret.getBytes().length * 8;
+        if(bitesSize >= minKeyLengthBits) {
+            return secret;
+        }
+        int deltaBites = minKeyLengthBits - bitesSize;
+        int deltaBytes = deltaBites / 8;
+        String fillCharacter = "R";
+        int width = deltaBytes / fillCharacter.getBytes().length ;
+        return secret + new String(new char[width]).replace('\0', fillCharacter.charAt(0));
     }
 
 }

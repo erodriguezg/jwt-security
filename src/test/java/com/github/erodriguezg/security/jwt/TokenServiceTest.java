@@ -1,10 +1,12 @@
 package com.github.erodriguezg.security.jwt;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -16,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SuppressWarnings("squid:S2925")
 public class TokenServiceTest {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TokenServiceTest.class);
+    private static final Logger log = LoggerFactory.getLogger(TokenServiceTest.class);
 
     private static final String SECRET_PHRASE = "fraseSuperSecreta!!!";
 
@@ -27,7 +29,7 @@ public class TokenServiceTest {
         this.dataSession = new DataSession();
         dataSession.setUserId(UUID.randomUUID().toString());
         dataSession.setRoles(Arrays.asList("rol1", "rol2", "rol3"));
-        LOG.info("session data map: '{}'", dataSession);
+        log.info("session data map: '{}'", dataSession);
     }
 
     @Test
@@ -37,11 +39,12 @@ public class TokenServiceTest {
                 .setExpirationTime(TimeUnit.MINUTES, 1L)
                 .build();
         String token = tokenService.create(dataSession);
+        log.info("token: {}", token);
         DataSession sessionDataFromToken = tokenService.parse(token);
         assertThat(dataSession).isEqualTo(sessionDataFromToken);
     }
 
-    @Test(expected = io.jsonwebtoken.SignatureException.class)
+    @Test(expected = io.jsonwebtoken.security.SecurityException.class)
     public void testTokenIncorrecto() {
 
         TokenService<DataSession> tokenService = new TokenServiceBuilder<>(DataSession.class)
@@ -50,7 +53,7 @@ public class TokenServiceTest {
                 .build();
 
         String token = tokenService.create(dataSession);
-        tokenService.parse(token+"a");
+        tokenService.parse(token + "a");
     }
 
     @Test(expected = io.jsonwebtoken.ExpiredJwtException.class)
@@ -75,7 +78,7 @@ public class TokenServiceTest {
         tokenService.parse(token);
     }
 
-    @Test(expected = io.jsonwebtoken.SignatureException.class)
+    @Test(expected = io.jsonwebtoken.security.SecurityException.class)
     public void testTokenInvalidoPorRotacion() throws InterruptedException {
         TokenService<DataSession> tokenService = new TokenServiceBuilder<>(DataSession.class)
                 .setSecretWindowRotation(new SecretWindowRotation(SECRET_PHRASE, TimeUnit.SECONDS, 1))
@@ -84,6 +87,33 @@ public class TokenServiceTest {
         String token = tokenService.create(dataSession);
         Thread.sleep(2000);
         tokenService.parse(token);
+    }
+
+    @Test
+    public void testTokenSecondsToExp() {
+        long expTimeMinutes = 30L;
+        long secondsToExpExpected = expTimeMinutes * 60;
+        TokenService<DataSession> tokenService = new TokenServiceBuilder<>(DataSession.class)
+                .setSecretWindowRotation(new SecretWindowRotation(SECRET_PHRASE, TimeUnit.SECONDS, 1))
+                .setExpirationTime(TimeUnit.MINUTES, expTimeMinutes)
+                .build();
+        String token = tokenService.create(dataSession);
+        long secondsToExpActual = getSecondsToExp(token);
+        log.info("expTimeMinutes: {}", expTimeMinutes);
+        log.info("secondsToExpExpected: {}", secondsToExpExpected);
+        log.info("secondsToExpActual: {}", secondsToExpActual);
+        assertThat(secondsToExpActual).isEqualTo(secondsToExpExpected);
+    }
+
+    private long getSecondsToExp(String token) {
+        String payloadB64 = token.split("\\.")[1];
+        String payloadText = new String(Base64.getUrlDecoder().decode(payloadB64));
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.reader().readTree(payloadText).get("secondsToExp").asLong();
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public static class DataSession {

@@ -4,9 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.impl.DefaultClaims;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,12 +95,17 @@ public class TokenService<T> {
         }
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationTimeOnMillis);
+        long secondsToExp = expirationTimeOnMillis / 1000;
 
         String dynamicSecret = rightPadding(toMD5B64(this.secretWindowRotation.secretWithWindowRotation(0)), this.signatureAlgorithm.getMinKeyLength());
         SecretKey algorithmKey = Keys.hmacShaKeyFor(dynamicSecret.getBytes());
 
+        Claims otherClaims = new DefaultClaims();
+        otherClaims.put("secondsToExp", secondsToExp);
+
         String token = Jwts.builder()
                 .setId(UUID.randomUUID().toString())
+                .setClaims(otherClaims)
                 .setSubject(jsonPayload)
                 .setIssuedAt(now)
                 .setExpiration(expiration)

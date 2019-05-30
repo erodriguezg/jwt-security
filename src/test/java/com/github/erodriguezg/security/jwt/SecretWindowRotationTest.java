@@ -1,7 +1,8 @@
 package com.github.erodriguezg.security.jwt;
 
-import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
@@ -9,11 +10,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class SecretWindowRotationTest {
 
-    private SecretWindowRotation secretWindowRotation;
+    private static final Logger log = LoggerFactory.getLogger(SecretWindowRotationTest.class);
 
     @Test
     public void test() throws InterruptedException {
-        secretWindowRotation = new SecretWindowRotation("secreto", TimeUnit.HOURS, 1);
+        SecretWindowRotation secretWindowRotation = new SecretWindowRotation("secreto", TimeUnit.HOURS, 1);
 
         String secret0 = secretWindowRotation.secretWithWindowRotation(-1);
         String secret1 = secretWindowRotation.secretWithWindowRotation(0);
@@ -27,14 +28,14 @@ public class SecretWindowRotationTest {
         String secret6 = secretWindowRotation.secretWithWindowRotation(-1);
         String secret7 = secretWindowRotation.secretWithWindowRotation(0);
 
-        System.out.println("secret0 " + secret0);
-        System.out.println("secret1 " + secret1);
-        System.out.println("secret2 " + secret2);
-        System.out.println("secret3 " + secret3);
-        System.out.println("secret4 " + secret4);
-        System.out.println("secret5 " + secret5);
-        System.out.println("secret6 " + secret6);
-        System.out.println("secret7 " + secret7);
+        log.info("secret0 {}", secret0);
+        log.info("secret1 {}", secret1);
+        log.info("secret2 {}", secret2);
+        log.info("secret3 {}", secret3);
+        log.info("secret4 {}", secret4);
+        log.info("secret5 {}", secret5);
+        log.info("secret6 {}", secret6);
+        log.info("secret7 {}", secret7);
         assertThat(secret0).isEqualTo(secret3).isEqualTo(secret6);
         assertThat(secret1).isEqualTo(secret1).isEqualTo(secret2).isEqualTo(secret4).isEqualTo(secret7);
         assertThat(secret5).isNotEqualTo(secret0);

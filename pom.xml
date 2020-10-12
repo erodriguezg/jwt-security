@@ -55,7 +55,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<version.jjwt>0.10.5</version.jjwt>
         <version.slf4j>1.7.25</version.slf4j>
-        <version.junit>4.12</version.junit>
+        <version.junit>4.13.1</version.junit>
         <version.assertj>2.2.0</version.assertj>
         <version.mockito>1.10.19</version.mockito>
         <version.servlet-api>3.0.1</version.servlet-api>

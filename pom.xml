@@ -59,7 +59,7 @@
         <version.assertj>2.2.0</version.assertj>
         <version.mockito>1.10.19</version.mockito>
         <version.servlet-api>3.0.1</version.servlet-api>
-        <version.spring-security>4.2.3.RELEASE</version.spring-security>
+        <version.spring-security>5.2.10.RELEASE</version.spring-security>
     </properties>
 
     <dependencies>
